@@ -1,4 +1,5 @@
 const config = require('../config');
+const logger = require('../config/logger');
 
 const PHONE_REGEX = /^\+?[1-9]\d{6,14}$/;
 
@@ -9,18 +10,12 @@ class SmsService {
     }
 
     if (config.twilio.accountSid && config.twilio.authToken) {
-      console.log('--- SMS via Twilio ---');
-      console.log(`To:   ${to}`);
-      console.log(`Body: ${body}`);
-      console.log('----------------------');
+      logger.info({ to, body }, 'SMS via Twilio');
 
       return { status: 'sent', provider: 'twilio', to };
     }
 
-    console.log('--- SMS Stub ---');
-    console.log(`To:   ${to}`);
-    console.log(`Body: ${body}`);
-    console.log('----------------');
+    logger.info({ to, body }, 'SMS stub');
 
     return { status: 'sent', provider: 'stub', to };
   }

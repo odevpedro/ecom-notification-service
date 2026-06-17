@@ -47,7 +47,7 @@ Nenhum item em andamento no momento.
 | `P1` | Integracao com provedor SMTP real | `M` | Substituir stub do nodemailer por envio real (Mailtrap / SendGrid / SES) |
 | `P1` | Implementacao de envio de SMS | `M` | Integrar com provedor real (Twilio / Vonage) |
 | `P1` | Implementacao de envio de Push | `M` | Integrar com provedor real (Firebase / OneSignal) |
-| `P1` | Consumo assincrono via RabbitMQ | `L` | Implementar consumo real de mensagens da fila de notificacoes |
+
 | `P2` | Retry e fallback por canal | `M` | Logica de retentativa em falha de envio e fallback entre canais |
 | `P2` | Templates de e-mail | `S` | Renderizacao de templates HTML para e-mails transacionais |
 | `P3` | Rate limiting por destinatario | `S` | Evitar sobrecarga de notificacoes para o mesmo usuario |
@@ -61,6 +61,7 @@ Nenhum item em andamento no momento.
 
 | Feature | Data | Descricao | Referencia |
 |---------|------|-----------|------------|
+| Consumo assincrono RabbitMQ | 2026-06-17 | NotificationConsumer com conexao real, exchange `ecom.order` (topic), fila `ecom.notification.order` vinculada com `order.#`, trata eventos `order.created` e `order.confirmed` disparando EmailService | [notification.consumer.js](../src/consumers/notification.consumer.js) |
 | Envio de e-mail (stub) | 2025-03-01 | Implementacao do EmailService com console.log como stub | [email.service.js](../src/services/email.service.js) |
 | Validacao Joi | 2025-03-01 | Schema de validacao com mensagens de erro para o payload | [notification.controller.js](../src/controllers/notification.controller.js) |
 | Estrutura RabbitMQ | 2025-03-01 | Classe NotificationConsumer com conexao stub e log condicional | [notification.consumer.js](../src/consumers/notification.consumer.js) |

@@ -1,4 +1,5 @@
 const config = require('../config');
+const logger = require('../config/logger');
 const emailProvider = require('./email.provider');
 
 class EmailService {
@@ -7,12 +8,7 @@ class EmailService {
       return emailProvider.sendMail({ to, subject, body });
     }
 
-    console.log('--- Email Stub ---');
-    console.log(`From:    ${config.fromEmail}`);
-    console.log(`To:      ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log(`Body:    ${body}`);
-    console.log('------------------');
+    logger.info({ from: config.fromEmail, to, subject, body }, 'Email stub');
 
     return { status: 'sent', provider: 'stub', to, subject };
   }

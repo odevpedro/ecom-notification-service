@@ -22,7 +22,7 @@ Faz parte de um ecossistema **polyglot** de microserviços (Node.js/Express, Pyt
 | Runtime       | Node.js 22                           |
 | Framework     | Express 4.21                         |
 | Validação     | Joi 17                               |
-| Mensageria    | amqplib (RabbitMQ) — stub             |
+| Mensageria    | amqplib (RabbitMQ) — consumo real     |
 | E-mail        | nodemailer — stub                    |
 | Infra         | Docker + Docker Compose              |
 | CI/CD         | GitHub Actions                       |
@@ -38,15 +38,21 @@ Faz parte de um ecossistema **polyglot** de microserviços (Node.js/Express, Pyt
 src/
 ├── index.js                            # Entrypoint — inicia servidor + consumer
 ├── app.js                              # Configuração do Express
-├── config/index.js                     # Carregamento de env vars
+├── config/
+│   ├── index.js                        # Carregamento de env vars
+│   └── swagger.js                      # Configuração Swagger
 ├── routes/notification.routes.js       # POST /api/notifications/send
 ├── controllers/
 │   ├── notification.controller.js      # Validação Joi + dispatch
 │   └── notification.controller.test.js # 4 testes
 ├── services/
 │   ├── email.service.js                # E-mail stub (log no console)
-│   └── email.service.test.js           # 1 teste
-├── consumers/notification.consumer.js  # RabbitMQ consumer (stub)
+│   ├── email.service.test.js           # 1 teste
+│   ├── email.config.js                 # Configuração SMTP
+│   ├── email.provider.js               # Provider nodemailer
+│   ├── sms.service.js / .test.js       # SMS (stub)
+│   └── push.service.js / .test.js      # Push (stub)
+├── consumers/notification.consumer.js  # RabbitMQ consumer (real)
 └── middleware/
     ├── error-handler.js                # Error handler padronizado
     └── response.js                     # X-Request-ID middleware
@@ -131,9 +137,9 @@ npm test
 [x] Validação Joi com mensagens de erro
 [x] Estrutura para consumo RabbitMQ
 [x] Health checks + Request ID + erro padronizado
+[x] Consumo assíncrono real via RabbitMQ (ecom.order exchange, eventos order.#)
 [ ] Integração com provedor SMTP real
 [ ] Implementação de SMS e Push
-[ ] Consumo assíncrono real via RabbitMQ
 ```
 
 ---

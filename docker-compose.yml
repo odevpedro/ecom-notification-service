@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3008:3008"
+    environment:
+      PORT: 3008
+      NODE_ENV: production
+      RABBITMQ_URL: amqp://rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_started
+    profiles:
+      - with-rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - with-rabbitmq

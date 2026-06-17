@@ -1,13 +1,16 @@
 const express = require('express');
 const swaggerUi = require('swagger-ui-express');
+const pinoHttp = require('pino-http');
 const requestId = require('./middleware/response');
 const errorHandler = require('./middleware/error-handler');
 const notificationRoutes = require('./routes/notification.routes');
 const swaggerSpec = require('./config/swagger');
+const logger = require('./config/logger');
 
 const app = express();
 
 app.use(express.json());
+app.use(pinoHttp({ logger }));
 app.use(requestId);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'notification' }));

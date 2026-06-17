@@ -316,19 +316,19 @@ return res.json({ status: 'stub', type: value.type, message: 'not implemented' }
 
 # Feature: Consumo RabbitMQ
 
-> **Versao:** 0.1.0
-> **Implementada em:** 2025-03-01
-> **Status:** Em andamento (placeholder)
+> **Versao:** 1.0.0
+> **Implementada em:** 2026-06-17
+> **Status:** Concluida
 
 ---
 
 ## Resumo
 
-Estrutura inicial para consumo assincrono de mensagens de notificacao via RabbitMQ. Atualmente apenas a classe `NotificationConsumer` existe com logica condicional: se `RABBITMQ_URL` estiver configurada, exibe log indicando que o servico tentara conectar — mas nao estabelece conexao real.
+O Notification Service consome eventos de dominio do RabbitMQ. Conecta-se ao broker na inicializacao, declara a exchange `ecom.order` (topic) e a fila `ecom.notification.order` vinculada com routing key `order.#`. Mensagens sao processadas assincronamente: eventos `order.created` e `order.confirmed` disparam envio de e-mail via `EmailService.send()`.
 
-**Motivacao:** Preparar a arquitetura para processamento assincrono, permitindo que servicos publiquem notificacoes em fila sem aguardar resposta sincrona.
+**Motivacao:** Processar notificacoes de forma assincrona e desacoplada, sem depender de chamadas HTTP sincronas entre servicos.
 
-**Resultado:** Estrutura de consumer pronta para implementacao real; integracao atual e inexistente (stub).
+**Resultado:** Notificacoes de criacao e confirmacao de pedido sao enviadas automaticamente quando o Order Service publica eventos no RabbitMQ.
 
 ---
 
@@ -344,19 +344,38 @@ Estrutura inicial para consumo assincrono de mensagens de notificacao via Rabbit
 
 ---
 
-### 2. Orquestracao
+### 2. Conexao e Setup
 
 - **Arquivo:** `src/consumers/notification.consumer.js`
 
-1. `config.rabbitmqUrl` e verificado
-2. Se URL for falsy ou igual a `amqp://localhost:5672` (padrao dev), exibe log "no RABBITMQ_URL configured, skipping" e retorna sem fazer nada
-3. Se URL personalizada for fornecida, exibe log "connecting to <url>" seguido de "stub mode — not implemented"
+1. `process.env.RABBITMQ_URL` e verificado
+2. Se nao definido, exibe log "stub mode" e retorna sem conectar
+3. Se definido, tenta conectar via `amqplib.connect()`
+4. Apos conectar:
+   - Cria canal
+   - Declara exchange `ecom.order` (topic, durable)
+   - Declara fila `ecom.notification.order` (durable)
+   - Vincula fila a exchange com routing key `order.#`
+   - Inicia consumo
 
----
+### 3. Processamento de Mensagens
 
-### 3. Resposta Final
+```javascript
+this.channel.consume('ecom.notification.order', async (msg) => {
+    const event = JSON.parse(msg.content.toString());
+    await this.handleEvent(event);
+    this.channel.ack(msg);
+});
+```
 
-Nao ha resposta — o metodo `start()` nao retorna valor. Apenas logs no console.
+### 4. Roteamento de Eventos
+
+| Event Type | Acao | Email enviado |
+|------------|------|---------------|
+| `confirmed` | `EmailService.send()` | "Order Confirmed" com valor total |
+| `created` | `EmailService.send()` | "Order Created" em processamento |
+
+O destinatario e construido como `user-{userId}@ecom.local` (placeholder — em producao, buscatia o email real do servico de usuarios).
 
 ---
 
@@ -364,9 +383,11 @@ Nao ha resposta — o metodo `start()` nao retorna valor. Apenas logs no console
 
 | Cenário | Comportamento |
 |---------|---------------|
-| `RABBITMQ_URL` nao definido | Loga "no RABBITMQ_URL configured, skipping" |
-| `RABBITMQ_URL` = `amqp://localhost:5672` | Loga "no RABBITMQ_URL configured, skipping" |
-| `RABBITMQ_URL` personalizado | Loga "connecting to <url>" e "stub mode — not implemented" |
+| `RABBITMQ_URL` nao definido | Loga "stub mode" e retorna |
+| Conexao falha | Loga warning "stub mode" com mensagem de erro |
+| Conexao perdida apos sucesso | Loga warning, tenta reconectar apos 5s |
+| Mensagem malformada (JSON invalido) | Rejeita (`nack`) sem reenfileirar |
+| Event type desconhecido | Loga "Unknown event type" e faz `ack` |
 
 ---
 
@@ -382,19 +403,48 @@ Nao ha resposta — o metodo `start()` nao retorna valor. Apenas logs no console
 | **Decisao** | Criar classe `NotificationConsumer` em diretorio `consumers/`, independente do fluxo HTTP, que reutiliza os mesmos services |
 | **Consequencias** | Separa clara de responsabilidades; facil testar cada fluxo isoladamente; o consumer pode evoluir para suportar multiplas filas |
 
+### ADR-005 — Email placeholder para desenvolvimento
+
+| Campo | Detalhe |
+|-------|---------|
+| **Status** | Aceita |
+| **Data** | 2026-06-17 |
+| **Contexto** | O evento do Order Service contem `userId` mas nao o email do usuario. O Notification Service nao possui acesso ao user-service para fazer a resolucao. |
+| **Decisao** | Usar `user-{userId}@ecom.local` como placeholder durante o desenvolvimento. Em producao, o consumer deve buscar o email real via API do user-service ou recebe-lo no payload do evento. |
+| **Consequencias** | Permite testar o fluxo completo sem dependencia do user-service, mas o email enviado nao e real. |
+
 ---
 
 ## Trechos de Codigo Relevantes
 
 ```javascript
 class NotificationConsumer {
-  start() {
-    if (!config.rabbitmqUrl || config.rabbitmqUrl === 'amqp://localhost:5672') {
-      console.log('Notification Consumer: no RABBITMQ_URL configured, skipping');
+  async start() {
+    if (!process.env.RABBITMQ_URL) {
+      console.log('RABBITMQ_URL not set — Notification Consumer in stub mode');
       return;
     }
-    console.log(`Notification Consumer: connecting to ${config.rabbitmqUrl}`);
-    console.log('Notification Consumer: stub mode — not implemented');
+    try {
+      this.connection = await amqp.connect(process.env.RABBITMQ_URL);
+      this.channel = await this.connection.createChannel();
+      await this.channel.assertExchange('ecom.order', 'topic', { durable: true });
+      await this.channel.assertQueue('ecom.notification.order', { durable: true });
+      await this.channel.bindQueue('ecom.notification.order', 'ecom.order', 'order.#');
+      this.channel.consume('ecom.notification.order', async (msg) => { ... });
+    } catch (err) {
+      console.warn('RabbitMQ connection failed — stub mode:', err.message);
+    }
+  }
+
+  async handleEvent(event) {
+    switch (event.eventType) {
+      case 'confirmed':
+        await this.emailService.send({
+          to: `user-${event.userId}@ecom.local`,
+          subject: 'Order Confirmed',
+          body: `Your order ${event.orderId} for ${(event.totalCents / 100).toFixed(2)} has been confirmed.`,
+        });
+    }
   }
 }
 ```
