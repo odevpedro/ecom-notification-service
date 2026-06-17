@@ -29,6 +29,16 @@ describe('NotificationController', () => {
       .post('/api/notifications/send')
       .send({ type: 'sms', to: '11999999999', body: 'Hello' });
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('stub');
+    expect(res.body.status).toBe('sent');
+    expect(res.body.provider).toBe('stub');
+  });
+
+  it('returns 200 for push stub', async () => {
+    const res = await request(app)
+      .post('/api/notifications/send')
+      .send({ type: 'push', to: 'device-token-123', body: 'Hello' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('sent');
+    expect(res.body.provider).toBe('stub');
   });
 });

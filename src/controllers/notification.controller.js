@@ -1,5 +1,7 @@
 const Joi = require('joi');
 const EmailService = require('../services/email.service');
+const SmsService = require('../services/sms.service');
+const PushService = require('../services/push.service');
 
 const sendSchema = Joi.object({
   type: Joi.string().valid('email', 'sms', 'push').required(),
@@ -11,6 +13,8 @@ const sendSchema = Joi.object({
 class NotificationController {
   constructor() {
     this.emailService = new EmailService();
+    this.smsService = new SmsService();
+    this.pushService = new PushService();
   }
 
   async send(req, res) {
@@ -23,6 +27,23 @@ class NotificationController {
       const result = await this.emailService.send({
         to: value.to,
         subject: value.subject,
+        body: value.body,
+      });
+      return res.json(result);
+    }
+
+    if (value.type === 'sms') {
+      const result = await this.smsService.sendSms({
+        to: value.to,
+        body: value.body,
+      });
+      return res.json(result);
+    }
+
+    if (value.type === 'push') {
+      const result = await this.pushService.sendPush({
+        to: value.to,
+        title: value.subject || 'Notification',
         body: value.body,
       });
       return res.json(result);

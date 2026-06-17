@@ -10,5 +10,12 @@ module.exports = {
     pass: process.env.SMTP_PASS,
   },
   fromEmail: process.env.FROM_EMAIL || 'noreply@ecom.local',
+  smtpFromName: process.env.SMTP_FROM_NAME || 'Ecom Notification',
   nodeEnv: process.env.NODE_ENV || 'development',
+  twilio: {
+    accountSid: process.env.TWILIO_ACCOUNT_SID,
+    authToken: process.env.TWILIO_AUTH_TOKEN,
+    fromNumber: process.env.TWILIO_FROM_NUMBER,
+  },
+  fcmServerKey: process.env.FCM_SERVER_KEY,
 };
